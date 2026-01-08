@@ -55,8 +55,6 @@ function switchTab(tabId) {
     });
     document.getElementById(tabId).classList.add('active');
 
-    document.getElementById(tabId).classList.add('active');
-
     // Update Title
     const titles = {
         'dashboard': 'Dashboard General',
@@ -302,6 +300,9 @@ function syncWazuh() {
         populateAssetSelect();
         updateDashboard();
 
+        // Added Notification
+        addNotification('SIEM', 'Se han importado 2 activos y 2 alertas críticas desde Wazuh.');
+
         alert('Sincronización con Wazuh completada. Se han importado nuevos activos y detecciones de riesgos.');
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -398,4 +399,105 @@ function getHeatmapColor(score) {
     if (score >= 10) return '#fd7e14'; // Orange
     if (score >= 5) return '#ffc107'; // Yellow
     return '#28a745'; // Green
+}
+
+// --- ROI & FINANCE MODULE ---
+
+function populateROIRiskSelect() {
+    const select = document.getElementById('roiRiskSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Seleccione Riesgo --</option>';
+    risks.forEach(r => {
+        const asset = assets.find(a => a.id === r.assetId);
+        select.innerHTML += `<option value="${r.id}">R-${r.id}: ${r.threat} (Activo: ${asset?.name})</option>`;
+    });
+}
+
+function calculateROI() {
+    const riskId = parseInt(document.getElementById('roiRiskSelect').value);
+    const cost = parseFloat(document.getElementById('controlCost').value) || 0;
+    const assetVal = parseFloat(document.getElementById('assetValueMoney').value) || 0;
+
+    if (!riskId) return;
+
+    const risk = risks.find(r => r.id === riskId);
+
+    // Simplified ALE Calculation
+    // ALE = Annual Loss Expectancy = Asset Value * Exposure Factor * Annualized Rate of Occurrence
+    // For prototype: Impact (1-5) maps to Exposure Factor (10% - 100%)
+    // Prob (1-5) maps to Occurrence (0.1 - 10 times/year)
+
+    const exposureFactor = risk.impact * 0.20; // Max 100%
+    const occurrence = risk.prob * 0.5; // Arbitrary scaler
+
+    const aleCurrent = assetVal * exposureFactor * occurrence;
+
+    // ALE After Control (Assume 80% risk reduction)
+    const aleResidual = aleCurrent * 0.20;
+
+    // Savings
+    const savings = aleCurrent - aleResidual;
+
+    // ROI = (Savings - Cost) / Cost * 100
+    const roi = ((savings - cost) / cost) * 100;
+
+    document.getElementById('roi-ale-current').innerText = aleCurrent.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    document.getElementById('roi-cost').innerText = cost.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    document.getElementById('roi-savings').innerText = savings.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+    const roiEl = document.getElementById('roi-percent');
+    roiEl.innerText = roi.toFixed(1) + '%';
+    roiEl.style.color = roi > 0 ? 'var(--success)' : 'var(--danger)';
+}
+
+// --- EVIDENCE MODULE ---
+let currentEvidenceRiskId = null;
+
+function openEvidenceModal(riskId) {
+    currentEvidenceRiskId = riskId;
+    document.getElementById('evidence-modal').style.display = 'block';
+    renderEvidenceList();
+}
+
+function closeEvidenceModal() {
+    document.getElementById('evidence-modal').style.display = 'none';
+    currentEvidenceRiskId = null;
+}
+
+function handleFiles(files) {
+    // Mock upload
+    const risk = risks.find(r => r.id === currentEvidenceRiskId);
+    if (!risk.evidence) risk.evidence = [];
+
+    Array.from(files).forEach(file => {
+        risk.evidence.push({ name: file.name, date: new Date().toLocaleDateString() });
+    });
+    renderEvidenceList();
+}
+
+function saveEvidence() {
+    alert('Evidencias guardadas en el registro del riesgo.');
+    closeEvidenceModal();
+}
+
+function renderEvidenceList() {
+    const list = document.getElementById('evidence-list');
+    list.innerHTML = '';
+    const risk = risks.find(r => r.id === currentEvidenceRiskId);
+    if (risk && risk.evidence) {
+        risk.evidence.forEach(f => {
+            list.innerHTML += `<li><i class="fa-solid fa-file"></i> ${f.name} <span style="font-size:0.8rem; color:#888;">${f.date}</span></li>`;
+        });
+    }
+}
+
+// --- SLA / NOTIFICATIONS ---
+
+function checkSLA() {
+    // Mock check: If a Critical risk exists and is untreated, warn user.
+    const criticalUntreated = risks.filter(r => r.riskScore >= 15 && !r.treated);
+
+    if (criticalUntreated.length > 0) {
+        addNotification('SLA Crítico', `Existen ${criticalUntreated.length} riesgos críticos sin tratar que exceden el tiempo de respuesta.`);
+    }
 }

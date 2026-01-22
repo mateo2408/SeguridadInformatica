@@ -27,6 +27,14 @@
                     Gestión de Riesgos</button></li>
             <li><button class="nav-btn" onclick="switchTab('treatment')"><i class="fa-solid fa-user-doctor"></i>
                     Tratamiento</button></li>
+            <li><button class="nav-btn" onclick="switchTab('vulnerabilities')"><i class="fa-solid fa-shield-virus"></i>
+                    Vulnerabilidades</button></li>
+            <li><button class="nav-btn" onclick="switchTab('compliance')"><i class="fa-solid fa-check-circle"></i>
+                    Cumplimiento</button></li>
+            <li><button class="nav-btn" onclick="switchTab('iso-controls')"><i class="fa-solid fa-book"></i>
+                    ISO 27002</button></li>
+            <li><button class="nav-btn" onclick="switchTab('audit')"><i class="fa-solid fa-clipboard-list"></i>
+                    Auditoría</button></li>
             <li><button class="nav-btn" onclick="switchTab('reports')"><i class="fa-solid fa-file-pdf"></i>
                     Reportes</button></li>
         </ul>
@@ -115,13 +123,38 @@
                                 <option value="Personal">Personal</option>
                             </select>
                         </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label>Propietario</label>
+                                <input type="text" id="assetOwner" class="form-control" placeholder="Ej: Departamento TI">
+                            </div>
+                            <div class="form-group">
+                                <label>Ubicación</label>
+                                <input type="text" id="assetLocation" class="form-control" placeholder="Ej: Data Center">
+                            </div>
+                        </div>
                         <div class="form-group">
-                            <label>Valoración (Confidencialidad, Integridad, Disponibilidad)</label>
+                            <label>Valoración General</label>
                             <select id="assetValue" class="form-control">
                                 <option value="1">Bajo (Uso interno)</option>
                                 <option value="3">Medio (Operación diaria)</option>
                                 <option value="5">Alto (Crítico para el negocio)</option>
                             </select>
+                        </div>
+                        <h4 style="margin: 15px 0 10px; color: var(--text-secondary); font-size: 0.9rem;">Tríada CIA (Confidencialidad, Integridad, Disponibilidad)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label>Confidencialidad (1-5)</label>
+                                <input type="number" id="assetConf" class="form-control" min="1" max="5" value="3">
+                            </div>
+                            <div class="form-group">
+                                <label>Integridad (1-5)</label>
+                                <input type="number" id="assetInteg" class="form-control" min="1" max="5" value="3">
+                            </div>
+                            <div class="form-group">
+                                <label>Disponibilidad (1-5)</label>
+                                <input type="number" id="assetAvail" class="form-control" min="1" max="5" value="3">
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary">Guardar Activo</button>
                         <button type="button" class="btn"
@@ -228,13 +261,18 @@
             <div id="reports" class="view-section">
                 <div class="section-header">
                     <h2>Reportes y Documentación</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="generateExecutiveReport()"><i class="fa-solid fa-file-invoice"></i> Reporte Ejecutivo</button>
+                        <button class="btn" style="background-color: #28a745; color: white;" onclick="exportRisksCSV()"><i class="fa-solid fa-file-csv"></i> Exportar Riesgos</button>
+                        <button class="btn" style="background-color: #17a2b8; color: white;" onclick="exportAssetsCSV()"><i class="fa-solid fa-file-csv"></i> Exportar Activos</button>
+                    </div>
                 </div>
                 <div class="dashboard-grid">
-                    <div class="card" style="cursor: pointer;">
+                    <div class="card" style="cursor: pointer;" onclick="generateExecutiveReport()">
                         <h3>Reporte Ejecutivo</h3>
                         <p style="font-size: 3rem; color: var(--accent-blue); text-align: center;"><i
                                 class="fa-solid fa-file-invoice"></i></p>
-                        <p style="text-align: center; margin-top: 10px;">Descargar PDF</p>
+                        <p style="text-align: center; margin-top: 10px;">Descargar TXT</p>
                     </div>
                     <div class="card" id="heatmap-card" style="grid-column: span 2;">
                         <h3>Mapa de Calor de Riesgos</h3>
@@ -243,6 +281,170 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- VULNERABILITIES VIEW -->
+            <div id="vulnerabilities" class="view-section">
+                <div class="section-header">
+                    <h2>Gestión de Vulnerabilidades</h2>
+                    <button class="btn btn-primary" onclick="scanVulnerabilities()"><i class="fa-solid fa-shield-virus"></i> Escanear Vulnerabilidades</button>
+                </div>
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">Base de datos de vulnerabilidades conocidas (CVE) que afectan a la organización.</p>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>CVE ID</th>
+                            <th>Descripción</th>
+                            <th>Componente Afectado</th>
+                            <th>Severidad</th>
+                            <th>CVSS Score</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vuln-table-body">
+                        <!-- JS renders rows here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- COMPLIANCE VIEW -->
+            <div id="compliance" class="view-section">
+                <div class="section-header">
+                    <h2>Cumplimiento Normativo</h2>
+                    <button class="btn btn-primary" onclick="generateComplianceReport()"><i class="fa-solid fa-file-download"></i> Generar Reporte</button>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h3>ISO/IEC 27001:2022</h3>
+                        <div class="number" style="color: var(--success);"><span id="comp-iso27001">0</span>%</div>
+                        <p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.85rem;">Gestión de Seguridad</p>
+                    </div>
+                    <div class="card">
+                        <h3>GDPR</h3>
+                        <div class="number" style="color: var(--accent-blue);"><span id="comp-gdpr">0</span>%</div>
+                        <p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.85rem;">Protección de Datos</p>
+                    </div>
+                    <div class="card">
+                        <h3>PCI DSS</h3>
+                        <div class="number" style="color: var(--warning);"><span id="comp-pci">0</span>%</div>
+                        <p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.85rem;">Seguridad de Pagos</p>
+                    </div>
+                    <div class="card">
+                        <h3>Última Evaluación</h3>
+                        <div class="number" style="font-size: 1.2rem; color: var(--text-primary);"><span id="comp-last-assessment">Nunca</span></div>
+                        <p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.85rem;">Fecha de Assessment</p>
+                    </div>
+                </div>
+                <div class="form-container">
+                    <h3><i class="fa-solid fa-chart-bar"></i> Estado de Cumplimiento</h3>
+                    <p style="color: var(--text-secondary); margin: 15px 0;">
+                        Las métricas de cumplimiento se calculan automáticamente en base a los controles implementados,
+                        riesgos tratados y protección de activos críticos. Los valores reflejan el nivel de alineación
+                        con las normativas internacionales de ciberseguridad.
+                    </p>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="padding: 10px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                            <i class="fa-solid fa-shield-halved" style="color: var(--success);"></i>
+                            <strong>ISO 27001:</strong> Basado en cobertura de tratamiento de riesgos
+                        </li>
+                        <li style="padding: 10px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                            <i class="fa-solid fa-lock" style="color: var(--accent-blue);"></i>
+                            <strong>GDPR:</strong> Basado en protección de activos de datos personales
+                        </li>
+                        <li style="padding: 10px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                            <i class="fa-solid fa-credit-card" style="color: var(--warning);"></i>
+                            <strong>PCI DSS:</strong> Basado en controles de riesgos críticos implementados
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ISO CONTROLS VIEW -->
+            <div id="iso-controls" class="view-section">
+                <div class="section-header">
+                    <h2>Catálogo ISO/IEC 27002:2022</h2>
+                </div>
+                <div class="form-container">
+                    <h3><i class="fa-solid fa-book"></i> Controles de Seguridad</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                        Consulte los controles de la norma ISO/IEC 27002:2022 para implementar en su organización.
+                        Estos controles están alineados con las mejores prácticas internacionales de ciberseguridad.
+                    </p>
+                    <div class="form-group">
+                        <label>Seleccione un Control</label>
+                        <select id="isoControlSelect" class="form-control" onchange="showControlDetails()">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div id="control-details" style="display: none;"></div>
+                </div>
+                <div class="form-container">
+                    <h3>Controles por Categoría</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                        <div>
+                            <h4 style="color: var(--accent-blue); margin-bottom: 10px;"><i class="fa-solid fa-building"></i> Organizacionales</h4>
+                            <ul style="list-style: none; padding: 0;">
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>5.1</strong> - Políticas de seguridad
+                                </li>
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>5.7</strong> - Inteligencia de amenazas
+                                </li>
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>5.15</strong> - Control de acceso
+                                </li>
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>5.23</strong> - Seguridad en cloud
+                                </li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--success); margin-bottom: 10px;"><i class="fa-solid fa-microchip"></i> Tecnológicos</h4>
+                            <ul style="list-style: none; padding: 0;">
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>8.8</strong> - Gestión de vulnerabilidades
+                                </li>
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>8.13</strong> - Respaldo de información
+                                </li>
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>8.16</strong> - Monitoreo
+                                </li>
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>8.24</strong> - Uso de criptografía
+                                </li>
+                                <li style="padding: 8px; background: var(--bg-dark); margin: 5px 0; border-radius: 4px;">
+                                    <strong>8.28</strong> - Codificación segura
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AUDIT VIEW -->
+            <div id="audit" class="view-section">
+                <div class="section-header">
+                    <h2>Registro de Auditoría</h2>
+                    <button class="btn btn-primary" onclick="exportAuditLog()"><i class="fa-solid fa-download"></i> Exportar Log</button>
+                </div>
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                    Registro completo de todas las actividades realizadas en el sistema. Últimas 20 entradas mostradas.
+                </p>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Módulo</th>
+                            <th>Acción</th>
+                            <th>Descripción</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-table-body">
+                        <!-- JS renders rows here -->
+                    </tbody>
+                </table>
             </div>
 
         </div>

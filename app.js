@@ -1,14 +1,54 @@
 // Data Storage (In-memory for prototype)
 let assets = [
-    { id: 1, name: 'Servidor Base de Datos', type: 'Hardware', value: 5 },
-    { id: 2, name: 'Código Fuente App', type: 'Software', value: 5 },
-    { id: 3, name: 'Laptops Empleados', type: 'Hardware', value: 3 }
+    { id: 1, name: 'Servidor Base de Datos', type: 'Hardware', value: 5, owner: 'TI', location: 'Data Center', confidentiality: 5, integrity: 5, availability: 5 },
+    { id: 2, name: 'Código Fuente App', type: 'Software', value: 5, owner: 'Desarrollo', location: 'GitHub', confidentiality: 4, integrity: 5, availability: 3 },
+    { id: 3, name: 'Laptops Empleados', type: 'Hardware', value: 3, owner: 'RRHH', location: 'Oficina', confidentiality: 3, integrity: 3, availability: 3 }
 ];
 
 let risks = [
-    { id: 1, assetId: 1, threat: 'Inyección SQL', prob: 3, impact: 5, riskScore: 15, treated: false },
-    { id: 2, assetId: 3, threat: 'Robo de equipo', prob: 2, impact: 4, riskScore: 8, treated: false }
+    { id: 1, assetId: 1, threat: 'Inyección SQL', vulnerability: 'Falta validación de entrada', prob: 3, impact: 5, riskScore: 15, treated: false, dateIdentified: '2026-01-15' },
+    { id: 2, assetId: 3, threat: 'Robo de equipo', vulnerability: 'No hay cifrado de disco', prob: 2, impact: 4, riskScore: 8, treated: false, dateIdentified: '2026-01-18' }
 ];
+
+// ISO/IEC 27002:2022 Controls Database
+const ISO27002Controls = {
+    '5.1': { category: 'Organizational', title: 'Políticas de seguridad de la información', description: 'Proporcionar dirección y apoyo de gestión' },
+    '5.7': { category: 'Organizational', title: 'Inteligencia de amenazas', description: 'Recopilar y analizar información sobre amenazas' },
+    '5.15': { category: 'Organizational', title: 'Control de acceso', description: 'Limitar acceso a información y sistemas' },
+    '5.23': { category: 'Organizational', title: 'Seguridad de la información en uso de servicios cloud', description: 'Gestionar riesgos en cloud' },
+    '8.1': { category: 'Technological', title: 'Dispositivos de usuario final', description: 'Proteger información en dispositivos de usuario' },
+    '8.2': { category: 'Technological', title: 'Derechos de acceso privilegiados', description: 'Gestionar y controlar accesos privilegiados' },
+    '8.3': { category: 'Technological', title: 'Restricción de acceso a la información', description: 'Restringir acceso según política' },
+    '8.8': { category: 'Technological', title: 'Gestión de vulnerabilidades técnicas', description: 'Prevenir explotación de vulnerabilidades' },
+    '8.9': { category: 'Technological', title: 'Gestión de configuración', description: 'Establecer configuraciones seguras' },
+    '8.13': { category: 'Technological', title: 'Respaldo de información', description: 'Mantener copias de seguridad' },
+    '8.16': { category: 'Technological', title: 'Actividades de monitoreo', description: 'Detectar comportamiento anómalo' },
+    '8.19': { category: 'Technological', title: 'Instalación de software en sistemas operativos', description: 'Controlar instalación de software' },
+    '8.20': { category: 'Technological', title: 'Seguridad de redes', description: 'Proteger redes y dispositivos' },
+    '8.21': { category: 'Technological', title: 'Seguridad de servicios de red', description: 'Implementar mecanismos de seguridad en servicios' },
+    '8.23': { category: 'Technological', title: 'Filtrado web', description: 'Gestionar acceso a sitios web externos' },
+    '8.24': { category: 'Technological', title: 'Uso de criptografía', description: 'Proteger confidencialidad e integridad' },
+    '8.28': { category: 'Technological', title: 'Codificación segura', description: 'Aplicar principios de desarrollo seguro' }
+};
+
+// Vulnerability Database
+const vulnerabilityDB = [
+    { id: 'CVE-2023-44487', severity: 'CRITICAL', description: 'HTTP/2 Rapid Reset Attack', affected: 'Web Servers', cvss: 7.5 },
+    { id: 'CVE-2023-4966', severity: 'CRITICAL', description: 'Citrix Bleed', affected: 'Citrix NetScaler', cvss: 9.4 },
+    { id: 'CVE-2023-36884', severity: 'HIGH', description: 'Microsoft Office RCE', affected: 'MS Office', cvss: 8.8 },
+    { id: 'CVE-2023-22518', severity: 'CRITICAL', description: 'Atlassian Confluence Auth Bypass', affected: 'Confluence', cvss: 9.8 }
+];
+
+// Audit Trail
+let auditLog = [];
+
+// Compliance Status
+let complianceMetrics = {
+    iso27001: 0,
+    gdpr: 0,
+    pci: 0,
+    lastAssessment: null
+};
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,7 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTreatment();
     populateAssetSelect();
     populateROIRiskSelect();
+    populateControlSelect();
     checkSLA();
+    renderComplianceDashboard();
+    renderAuditLog();
+    renderVulnerabilities();
+    startRiskMonitoring();
+    logAudit('Sistema', 'Inicio de sesión', 'Usuario Admin inició sesión en el sistema');
 });
 
 // Notifications
@@ -61,6 +107,10 @@ function switchTab(tabId) {
         'assets': 'Gestión de Activos',
         'risks': 'Matriz de Riesgos',
         'treatment': 'Plan de Tratamiento',
+        'vulnerabilities': 'Gestión de Vulnerabilidades',
+        'compliance': 'Cumplimiento Normativo',
+        'iso-controls': 'Catálogo ISO/IEC 27002:2022',
+        'audit': 'Registro de Auditoría',
         'reports': 'Reportes',
         'roi': 'Análisis Costo-Beneficio (ROI)'
     };
@@ -83,19 +133,31 @@ function addAsset(e) {
     const name = document.getElementById('assetName').value;
     const type = document.getElementById('assetType').value;
     const value = parseInt(document.getElementById('assetValue').value);
+    const owner = document.getElementById('assetOwner')?.value || 'No asignado';
+    const location = document.getElementById('assetLocation')?.value || 'No especificado';
+    const conf = parseInt(document.getElementById('assetConf')?.value || value);
+    const integ = parseInt(document.getElementById('assetInteg')?.value || value);
+    const avail = parseInt(document.getElementById('assetAvail')?.value || value);
 
     const newAsset = {
         id: assets.length + 1,
         name,
         type,
-        value
+        value,
+        owner,
+        location,
+        confidentiality: conf,
+        integrity: integ,
+        availability: avail
     };
 
     assets.push(newAsset);
+    logAudit('Activos', 'Crear', `Nuevo activo registrado: ${name}`);
     renderAssets();
     populateAssetSelect();
     updateDashboard();
     hideAssetForm();
+    addNotification('Activo', `Activo "${name}" registrado exitosamente`);
 }
 
 function renderAssets() {
@@ -500,4 +562,409 @@ function checkSLA() {
     if (criticalUntreated.length > 0) {
         addNotification('SLA Crítico', `Existen ${criticalUntreated.length} riesgos críticos sin tratar que exceden el tiempo de respuesta.`);
     }
+}
+
+// --- AUDIT LOG MODULE ---
+
+function logAudit(module, action, description) {
+    const entry = {
+        id: auditLog.length + 1,
+        timestamp: new Date().toLocaleString('es-ES'),
+        module,
+        action,
+        description,
+        user: 'Admin User'
+    };
+    auditLog.unshift(entry);
+    
+    // Keep last 100 entries
+    if (auditLog.length > 100) auditLog.pop();
+    
+    renderAuditLog();
+}
+
+function renderAuditLog() {
+    const tbody = document.getElementById('audit-table-body');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    const recentLogs = auditLog.slice(0, 20); // Show last 20
+    
+    recentLogs.forEach(log => {
+        const row = `
+            <tr>
+                <td>${log.timestamp}</td>
+                <td>${log.module}</td>
+                <td>${log.action}</td>
+                <td>${log.description}</td>
+                <td>${log.user}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+function exportAuditLog() {
+    const csv = ['Timestamp,Module,Action,Description,User'];
+    auditLog.forEach(log => {
+        csv.push(`${log.timestamp},${log.module},${log.action},"${log.description}",${log.user}`);
+    });
+    
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit_log_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    
+    logAudit('Auditoría', 'Exportar', 'Registro de auditoría exportado');
+}
+
+// --- COMPLIANCE DASHBOARD ---
+
+function renderComplianceDashboard() {
+    updateComplianceMetrics();
+    
+    document.getElementById('comp-iso27001').innerText = complianceMetrics.iso27001 + '%';
+    document.getElementById('comp-gdpr').innerText = complianceMetrics.gdpr + '%';
+    document.getElementById('comp-pci').innerText = complianceMetrics.pci + '%';
+    
+    const lastAssess = complianceMetrics.lastAssessment || 'Nunca';
+    document.getElementById('comp-last-assessment').innerText = lastAssess;
+}
+
+function updateComplianceMetrics() {
+    // Calculate based on treated risks and implemented controls
+    const totalRisks = risks.length;
+    const treatedRisks = risks.filter(r => r.treated).length;
+    const highRisksTreated = risks.filter(r => r.riskScore >= 10 && r.treated).length;
+    const highRisksTotal = risks.filter(r => r.riskScore >= 10).length;
+    
+    // ISO 27001 (based on risk treatment)
+    complianceMetrics.iso27001 = totalRisks > 0 ? Math.round((treatedRisks / totalRisks) * 100) : 0;
+    
+    // GDPR (based on data protection assets)
+    const dataAssets = assets.filter(a => a.type === 'Datos' && a.confidentiality >= 4).length;
+    const protectedDataAssets = dataAssets > 0 ? Math.round((dataAssets * 0.7)) : 0; // Mock
+    complianceMetrics.gdpr = dataAssets > 0 ? Math.round((protectedDataAssets / dataAssets) * 100) : 0;
+    
+    // PCI DSS (based on critical controls)
+    complianceMetrics.pci = highRisksTotal > 0 ? Math.round((highRisksTreated / highRisksTotal) * 100) : 0;
+    
+    complianceMetrics.lastAssessment = new Date().toLocaleDateString('es-ES');
+}
+
+function generateComplianceReport() {
+    updateComplianceMetrics();
+    
+    const report = `
+=================================================
+       REPORTE DE CUMPLIMIENTO NORMATIVO
+=================================================
+Fecha: ${new Date().toLocaleString('es-ES')}
+Organización: Mi Empresa
+
+--- MÉTRICAS DE CUMPLIMIENTO ---
+ISO/IEC 27001: ${complianceMetrics.iso27001}%
+GDPR: ${complianceMetrics.gdpr}%
+PCI DSS: ${complianceMetrics.pci}%
+
+--- RESUMEN DE RIESGOS ---
+Total de Activos: ${assets.length}
+Riesgos Identificados: ${risks.length}
+Riesgos Tratados: ${risks.filter(r => r.treated).length}
+Riesgos Críticos Pendientes: ${risks.filter(r => r.riskScore >= 15 && !r.treated).length}
+
+--- RECOMENDACIONES ---
+${complianceMetrics.iso27001 < 80 ? '⚠ ISO 27001: Se requiere mayor cobertura de tratamiento de riesgos\n' : ''}
+${complianceMetrics.gdpr < 80 ? '⚠ GDPR: Mejorar controles de protección de datos personales\n' : ''}
+${complianceMetrics.pci < 80 ? '⚠ PCI DSS: Implementar controles de seguridad para datos de tarjetas\n' : ''}
+
+=================================================
+    `;
+    
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compliance_report_${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    
+    logAudit('Cumplimiento', 'Generar Reporte', 'Reporte de cumplimiento generado');
+    addNotification('Reporte', 'Reporte de cumplimiento descargado');
+}
+
+// --- VULNERABILITY MANAGEMENT ---
+
+function renderVulnerabilities() {
+    const tbody = document.getElementById('vuln-table-body');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    vulnerabilityDB.forEach(vuln => {
+        const severityClass = vuln.severity === 'CRITICAL' ? 'badge-critical' : 'badge-high';
+        const row = `
+            <tr>
+                <td><strong>${vuln.id}</strong></td>
+                <td>${vuln.description}</td>
+                <td>${vuln.affected}</td>
+                <td><span class="badge ${severityClass}">${vuln.severity}</span></td>
+                <td>${vuln.cvss}</td>
+                <td><button class="btn btn-primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="createRiskFromVuln('${vuln.id}')">Crear Riesgo</button></td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+function createRiskFromVuln(vulnId) {
+    const vuln = vulnerabilityDB.find(v => v.id === vulnId);
+    if (!vuln) return;
+    
+    // Find or create an asset for the affected component
+    let asset = assets.find(a => a.name.includes(vuln.affected));
+    if (!asset) {
+        asset = {
+            id: assets.length + 1,
+            name: `${vuln.affected} (Auto-detectado)`,
+            type: 'Software',
+            value: 4,
+            owner: 'TI',
+            location: 'Infraestructura',
+            confidentiality: 4,
+            integrity: 4,
+            availability: 4
+        };
+        assets.push(asset);
+    }
+    
+    // Create risk based on CVSS score
+    const prob = vuln.cvss >= 9 ? 5 : vuln.cvss >= 7 ? 4 : 3;
+    const impact = vuln.severity === 'CRITICAL' ? 5 : 4;
+    
+    const newRisk = {
+        id: risks.length + 1,
+        assetId: asset.id,
+        threat: `${vuln.id}: ${vuln.description}`,
+        vulnerability: `Vulnerabilidad conocida CVSS ${vuln.cvss}`,
+        prob,
+        impact,
+        riskScore: prob * impact,
+        treated: false,
+        dateIdentified: new Date().toISOString().split('T')[0]
+    };
+    
+    risks.push(newRisk);
+    renderRisks();
+    renderTreatment();
+    updateDashboard();
+    
+    logAudit('Vulnerabilidades', 'Crear Riesgo', `Riesgo creado desde vulnerabilidad ${vulnId}`);
+    addNotification('Vulnerabilidad', `Riesgo R-${newRisk.id} creado desde ${vulnId}`);
+    
+    alert(`Riesgo R-${newRisk.id} creado exitosamente desde la vulnerabilidad ${vulnId}`);
+}
+
+function scanVulnerabilities() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Escaneando...';
+    
+    setTimeout(() => {
+        // Mock: Add a new vulnerability
+        const newVuln = {
+            id: 'CVE-2026-' + Math.floor(Math.random() * 10000),
+            severity: Math.random() > 0.5 ? 'CRITICAL' : 'HIGH',
+            description: 'Nueva vulnerabilidad detectada en el sistema',
+            affected: 'Sistema Operativo',
+            cvss: (7 + Math.random() * 3).toFixed(1)
+        };
+        
+        vulnerabilityDB.push(newVuln);
+        renderVulnerabilities();
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-shield-virus"></i> Escanear Vulnerabilidades';
+        
+        addNotification('Scan', `Escaneo completado. Se encontró 1 nueva vulnerabilidad`);
+        logAudit('Vulnerabilidades', 'Escanear', 'Escaneo de vulnerabilidades completado');
+    }, 2000);
+}
+
+// --- AUTOMATED RISK MONITORING ---
+
+let monitoringInterval = null;
+
+function startRiskMonitoring() {
+    // Check for new high risks every 30 seconds
+    monitoringInterval = setInterval(() => {
+        const untreatedCritical = risks.filter(r => r.riskScore >= 15 && !r.treated);
+        const untreatedHigh = risks.filter(r => r.riskScore >= 10 && r.riskScore < 15 && !r.treated);
+        
+        if (untreatedCritical.length > 0) {
+            console.warn(`⚠️ ALERTA: ${untreatedCritical.length} riesgos críticos sin tratar`);
+        }
+        
+        if (untreatedHigh.length > 0) {
+            console.info(`ℹ️ INFO: ${untreatedHigh.length} riesgos altos sin tratar`);
+        }
+    }, 30000);
+}
+
+function stopRiskMonitoring() {
+    if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+        monitoringInterval = null;
+    }
+}
+
+// --- ISO 27002 CONTROLS ---
+
+function populateControlSelect() {
+    const select = document.getElementById('isoControlSelect');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Seleccione Control ISO 27002:2022 --</option>';
+    Object.keys(ISO27002Controls).forEach(key => {
+        const control = ISO27002Controls[key];
+        select.innerHTML += `<option value="${key}">${key} - ${control.title}</option>`;
+    });
+}
+
+function showControlDetails() {
+    const select = document.getElementById('isoControlSelect');
+    const detailsDiv = document.getElementById('control-details');
+    
+    if (!select.value) {
+        detailsDiv.style.display = 'none';
+        return;
+    }
+    
+    const control = ISO27002Controls[select.value];
+    detailsDiv.innerHTML = `
+        <div style="background-color: var(--bg-dark); padding: 15px; border-radius: 4px; margin-top: 10px;">
+            <h4 style="color: var(--accent-blue);">${select.value}: ${control.title}</h4>
+            <p style="margin: 10px 0;"><strong>Categoría:</strong> ${control.category}</p>
+            <p style="margin: 10px 0;"><strong>Descripción:</strong> ${control.description}</p>
+        </div>
+    `;
+    detailsDiv.style.display = 'block';
+}
+
+// --- ENHANCED EXPORT FUNCTIONS ---
+
+function exportRisksCSV() {
+    const csv = ['ID,Activo,Amenaza,Vulnerabilidad,Probabilidad,Impacto,Score,Nivel,Tratado,Fecha'];
+    
+    risks.forEach(risk => {
+        const asset = assets.find(a => a.id === risk.assetId);
+        const level = getRiskLevel(risk.riskScore).label;
+        csv.push(`R-${risk.id},"${asset?.name || 'Unknown'}","${risk.threat}","${risk.vulnerability || 'N/A'}",${risk.prob},${risk.impact},${risk.riskScore},${level},${risk.treated ? 'Sí' : 'No'},${risk.dateIdentified || 'N/A'}`);
+    });
+    
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `risks_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    
+    logAudit('Exportación', 'CSV Riesgos', 'Matriz de riesgos exportada a CSV');
+    addNotification('Exportación', 'Matriz de riesgos exportada exitosamente');
+}
+
+function exportAssetsCSV() {
+    const csv = ['ID,Nombre,Tipo,Propietario,Ubicación,Valor,Confidencialidad,Integridad,Disponibilidad'];
+    
+    assets.forEach(asset => {
+        csv.push(`${asset.id},"${asset.name}",${asset.type},"${asset.owner || 'N/A'}","${asset.location || 'N/A'}",${asset.value},${asset.confidentiality},${asset.integrity},${asset.availability}`);
+    });
+    
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `assets_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    
+    logAudit('Exportación', 'CSV Activos', 'Inventario de activos exportado a CSV');
+    addNotification('Exportación', 'Inventario de activos exportado exitosamente');
+}
+
+function generateExecutiveReport() {
+    updateComplianceMetrics();
+    
+    const report = `
+╔═══════════════════════════════════════════════╗
+║     REPORTE EJECUTIVO DE RIESGOS CYBER       ║
+╚═══════════════════════════════════════════════╝
+
+Fecha: ${new Date().toLocaleString('es-ES')}
+Generado por: RiskManager Pro
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 RESUMEN GENERAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Activos Totales: ${assets.length}
+Riesgos Identificados: ${risks.length}
+Riesgos Tratados: ${risks.filter(r => r.treated).length}
+Riesgo Promedio: ${(risks.reduce((sum, r) => sum + r.riskScore, 0) / risks.length).toFixed(1)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  RIESGOS POR NIVEL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CRÍTICO (≥15): ${risks.filter(r => r.riskScore >= 15).length}
+ALTO (10-14): ${risks.filter(r => r.riskScore >= 10 && r.riskScore < 15).length}
+MEDIO (5-9): ${risks.filter(r => r.riskScore >= 5 && r.riskScore < 10).length}
+BAJO (<5): ${risks.filter(r => r.riskScore < 5).length}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 CUMPLIMIENTO NORMATIVO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ISO/IEC 27001:2022: ${complianceMetrics.iso27001}%
+GDPR: ${complianceMetrics.gdpr}%
+PCI DSS: ${complianceMetrics.pci}%
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 TOP 5 RIESGOS CRÍTICOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${risks.sort((a, b) => b.riskScore - a.riskScore).slice(0, 5).map((r, i) => {
+    const asset = assets.find(a => a.id === r.assetId);
+    return `${i+1}. [R-${r.id}] ${r.threat}\n   Activo: ${asset?.name}\n   Score: ${r.riskScore} | Estado: ${r.treated ? '✓ Tratado' : '✗ Pendiente'}\n`;
+}).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 RECOMENDACIONES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${risks.filter(r => !r.treated && r.riskScore >= 10).length > 0 ? 
+  `• Priorizar tratamiento de ${risks.filter(r => !r.treated && r.riskScore >= 10).length} riesgos altos/críticos\n` : ''}
+${complianceMetrics.iso27001 < 80 ? '• Aumentar cobertura de controles ISO 27001\n' : ''}
+${assets.filter(a => a.value >= 4 && a.confidentiality >= 4).length > 0 ? 
+  `• Revisar protección de ${assets.filter(a => a.value >= 4).length} activos críticos\n` : ''}
+• Realizar evaluaciones periódicas de riesgos
+• Mantener actualizado el inventario de activos
+• Documentar evidencias de controles implementados
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Este reporte fue generado automáticamente por RiskManager.
+Metodología basada en ISO/IEC 27005 e ISO/IEC 27002:2022
+
+═══════════════════════════════════════════════
+    `;
+    
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `executive_report_${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    
+    logAudit('Reportes', 'Generar Ejecutivo', 'Reporte ejecutivo generado');
+    addNotification('Reporte', 'Reporte ejecutivo descargado');
 }
